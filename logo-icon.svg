@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="נץ">
+  <defs>
+    <radialGradient id="nzT" cx=".5" cy=".42" r=".7"><stop offset="0" stop-color="#11284a"/><stop offset="1" stop-color="#050b16"/></radialGradient>
+    <linearGradient id="nzL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ae0f8"/><stop offset="1" stop-color="#2fb8e6"/></linearGradient>
+    <linearGradient id="nzR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3399dd"/><stop offset="1" stop-color="#1c64a3"/></linearGradient>
+    <linearGradient id="nzW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#e3f6ff"/><stop offset="1" stop-color="#bfeaff" stop-opacity=".6"/></linearGradient>
+    <clipPath id="nzC"><path d="M26 3.5L28 7L29.2 10.5L30.7 14.8L32.5 16.8Q46 19 51 26.3L47 27.2L43.2 28.2L44 29.5L45.7 31.2L38.5 32L38.7 33L40.5 35.2L31.5 35.4L30.5 37L29.5 40L29.5 43L30.5 44L31.4 47.4L29.2 47L26 44.3L22.8 47L20.6 47.4L21.5 44L22.5 43L22.5 40L21.5 37L20.5 35.4L11.5 35.2L13.3 33L13.5 32L6.3 31.2L8 29.5L8.8 28.2L5 27.2L1 26.3Q6 19 19.5 16.8L21.3 14.8L22.8 10.5L24 7Z"/></clipPath>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#nzT)"/>
+  <rect x=".75" y=".75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#50c4f0" stroke-opacity=".35" stroke-width="1.5"/>
+  <g transform="translate(7.3 7.8) scale(.95)" clip-path="url(#nzC)">
+    <rect width="26" height="52" fill="url(#nzL)"/>
+    <rect x="26" width="26" height="52" fill="url(#nzR)"/>
+    <path fill="url(#nzW)" d="M26 2L33 13L27.6 16.5L26.9 23L26 26.5L25.1 23L24.4 16.5L19 13Z"/>
+  </g>
+</svg>

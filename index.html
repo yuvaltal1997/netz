@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-theme="night">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a172a">
+<title>נץ – ניתוב מטופלים למיון</title>
+<link rel="icon" id="favicon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.441.0/dist/umd/lucide.min.js"></script>
+<style>
+:root{--bg:#0a0e17;--s1:#111826;--s2:#172031;--line:#243149;--tx:#eef2f6;--mut:#97a3b6;--acc:#ffb800;--acctx:#ffc933;--go:#34d399;--warn:#fbbf24;--bad:#f87171;--trv:#cfd8e3;--brand:#50c4f0;--shadow:0 10px 30px rgba(0,0,0,.35)}
+[data-theme=day]{--bg:#e8edf3;--s1:#ffffff;--s2:#f1f4f8;--line:#d2dae4;--tx:#0e1626;--mut:#4b5a6c;--acc:#ffb800;--acctx:#8a5a00;--go:#0f9d58;--warn:#e69500;--bad:#d93025;--trv:#8d9ba7;--brand:#0a6fa3;--shadow:0 8px 24px rgba(20,40,60,.12)}
+html,body{background:var(--bg);color:var(--tx);font-family:'Assistant',Arial,sans-serif;min-height:100%;transition:background .3s,color .3s}
+.disp{font-family:'Secular One','Assistant',sans-serif;font-weight:400}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+.lbl{font-size:.95rem;font-weight:700;color:var(--mut);margin-bottom:.5rem;display:block}
+.chip{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .75rem;border-radius:99px;background:var(--s2);border:1px solid var(--line);font-size:.9rem;color:var(--mut);font-weight:600;white-space:nowrap}
+.chip b{color:var(--tx)}
+.ibtn{min-height:44px;min-width:44px;border-radius:12px;background:var(--s2);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:0 .8rem;font-weight:700;color:var(--tx)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.logo{flex:none;filter:drop-shadow(0 0 12px rgba(80,196,240,.4))}
+.logo .lg-mark{transform-origin:0 0}
+[data-theme=night] .logo .lg-tile{display:none}                 /* בלילה הנץ עומד לבד על הרקע הכהה, כמו בלוגו */
+[data-theme=night] .logo .lg-mark{transform:scale(1.23)}
+[data-theme=day] .logo{filter:drop-shadow(0 6px 14px rgba(10,23,42,.3))}   /* ביום: על אריח כחול כהה, אחרת הראש הלבן נעלם */
+.brand{color:var(--brand)}
+.urg{min-height:60px;border-radius:14px;border:2px solid var(--line);background:var(--s2);font-weight:800;font-size:1.05rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;transition:.15s;color:var(--tx)}
+.urg i{width:10px;height:10px;border-radius:50%;background:var(--u)}
+.urg[aria-pressed=true]{background:var(--u);border-color:var(--u);color:#0c1013;transform:translateY(-1px)}
+.urg[aria-pressed=true] i{background:#0c1013}
+.tile{min-height:78px;border-radius:14px;border:2px solid var(--line);background:var(--s2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;font-weight:700;font-size:.95rem;color:var(--tx);padding:.4rem;text-align:center;line-height:1.15;transition:.15s}
+.tile svg{width:24px;height:24px;color:var(--mut)}
+.tile[aria-pressed=true]{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 16%,var(--s2))}
+.tile[aria-pressed=true] svg{color:var(--acctx)}
+.seg{flex:1;min-height:52px;border-radius:12px;border:2px solid var(--line);background:var(--s2);font-weight:800;color:var(--mut)}
+.seg[aria-pressed=true]{border-color:var(--tx);color:var(--tx);background:var(--s1)}
+.fld{width:100%;min-height:54px;border-radius:12px;border:2px solid var(--line);background:var(--s2);color:var(--tx);padding:.6rem .8rem;font-size:1.05rem;font-weight:600}
+.hero{position:relative;overflow:hidden;border:2px solid var(--go)}
+.hero.manual{border-color:var(--acc)}
+.pulse{width:11px;height:11px;border-radius:50%;background:var(--go);display:inline-block;animation:pl 1.4s infinite}
+@keyframes pl{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 70%,transparent)}100%{box-shadow:0 0 0 13px transparent}}
+.bigt{font-size:clamp(3.4rem,7vw,5.2rem);line-height:.95}
+.tl{display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--s2);gap:2px}
+.tl>div{height:100%;transition:width .5s}
+.nav{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:56px;padding:0 1.2rem;border-radius:14px;font-weight:800;font-size:1.05rem;flex:1}
+.row{display:grid;grid-template-columns:34px minmax(0,1.3fr) minmax(0,2fr) 92px 56px;gap:.9rem;align-items:center;width:100%;text-align:right;padding:.85rem 1rem;border-radius:14px;border:2px solid transparent;transition:.15s}
+.row:hover{background:var(--s2)}
+.row.sel{border-color:var(--acc);background:var(--s2)}
+.row.rec .rk{background:var(--go);color:#0c1013}
+.rk{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--s2);font-weight:800;font-size:.9rem;border:1px solid var(--line)}
+@media(max-width:760px){.row{grid-template-columns:30px minmax(0,1fr) 56px;row-gap:.35rem;padding:.75rem .6rem}.row .rk,.row .nm,.row .sc{grid-row:1}.row .rk{grid-column:1}.row .nm{grid-column:2}.row .sc{grid-column:3}.row .bars,.row .kc{grid-column:2/4}.row .kc{display:flex;gap:.75rem;align-items:baseline}}
+.tag{font-size:.75rem;font-weight:800;padding:.1rem .45rem;border-radius:6px}
+#map{height:100%;min-height:360px;border-radius:16px;z-index:0}
+.leaflet-container{background:var(--s2);font-family:'Assistant',sans-serif}
+[data-theme=night] .leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.5)}
+.pin{width:30px;height:30px;border-radius:50%;background:var(--c);display:grid;place-items:center;color:#0c1013;font-weight:800;font-size:12px;border:3px solid var(--s1);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.pin.top{width:44px;height:44px;font-size:15px;box-shadow:0 0 0 0 var(--c);animation:pin 1.6s infinite}
+@keyframes pin{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 70%,transparent)}100%{box-shadow:0 0 0 18px transparent}}
+.amb{width:40px;height:40px;border-radius:12px;background:var(--acc);color:#0c1013;display:grid;place-items:center;border:3px solid var(--s1);box-shadow:0 2px 10px rgba(0,0,0,.45)}
+.amb svg{width:22px;height:22px}
+.mapoff{height:100%;display:grid;place-items:center;color:var(--mut);padding:2rem;text-align:center}
+@media(prefers-reduced-motion:reduce){.pulse,.pin.top{animation:none}}
+#toast{position:fixed;top:1rem;left:50%;transform:translate(-50%,-140px);transition:.4s;background:var(--tx);color:var(--bg);padding:.85rem 1.3rem;border-radius:14px;z-index:1000;font-weight:800;box-shadow:var(--shadow);max-width:calc(100vw - 2rem)}
+#toast.show{transform:translate(-50%,0)}
+dialog{background:var(--s1);color:var(--tx);border:1px solid var(--line);border-radius:18px;padding:1.4rem;max-width:480px;width:92%}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+summary{cursor:pointer;list-style:none;min-height:48px;display:flex;align-items:center;gap:.5rem}
+</style>
+</head>
+<body class="p-3 md:p-4">
+<div id="toast" role="status" aria-live="polite"></div>
+
+<header class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <div class="flex items-center gap-3">
+    <svg id="logo" class="logo" width="56" height="56" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <radialGradient id="nzT" cx=".5" cy=".42" r=".7"><stop offset="0" stop-color="#11284a"/><stop offset="1" stop-color="#050b16"/></radialGradient>
+        <linearGradient id="nzL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ae0f8"/><stop offset="1" stop-color="#2fb8e6"/></linearGradient>
+        <linearGradient id="nzR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3399dd"/><stop offset="1" stop-color="#1c64a3"/></linearGradient>
+        <linearGradient id="nzW" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#e3f6ff"/><stop offset="1" stop-color="#bfeaff" stop-opacity=".6"/></linearGradient>
+        <clipPath id="nzC"><path d="M26 3.5L28 7L29.2 10.5L30.7 14.8L32.5 16.8Q46 19 51 26.3L47 27.2L43.2 28.2L44 29.5L45.7 31.2L38.5 32L38.7 33L40.5 35.2L31.5 35.4L30.5 37L29.5 40L29.5 43L30.5 44L31.4 47.4L29.2 47L26 44.3L22.8 47L20.6 47.4L21.5 44L22.5 43L22.5 40L21.5 37L20.5 35.4L11.5 35.2L13.3 33L13.5 32L6.3 31.2L8 29.5L8.8 28.2L5 27.2L1 26.3Q6 19 19.5 16.8L21.3 14.8L22.8 10.5L24 7Z"/></clipPath>
+      </defs>
+      <g class="lg-tile"><rect width="64" height="64" rx="15" fill="url(#nzT)"/><rect x=".75" y=".75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#50c4f0" stroke-opacity=".35" stroke-width="1.5"/></g>
+      <g class="lg-mark" transform="translate(7.3 7.8) scale(.95)"><g clip-path="url(#nzC)">
+        <rect width="26" height="52" fill="url(#nzL)"/><rect x="26" width="26" height="52" fill="url(#nzR)"/>
+        <path fill="url(#nzW)" d="M26 2L33 13L27.6 16.5L26.9 23L26 26.5L25.1 23L24.4 16.5L19 13Z"/>
+      </g></g>
+    </svg>
+    <div><h1 class="disp text-4xl leading-none" id="appName">נץ</h1><p class="text-sm font-extrabold mt-1">מקבלים החלטות <span class="brand">חכמות.</span> מצילים <span class="brand">זמן</span></p></div>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="chip" id="gpsChip"><i data-lucide="crosshair" class="w-4 h-4"></i><span id="gpsTxt">מאתר מיקום…</span></span>
+    <span class="chip" id="srcChip"><i data-lucide="route" class="w-4 h-4"></i><span id="srcTxt">הערכה מקומית</span></span>
+    <span class="chip"><i data-lucide="flask-conical" class="w-4 h-4"></i>עומסים: סימולציה</span>
+    <button class="ibtn" id="themeBtn" aria-label="החלפת מצב יום ולילה"><i data-lucide="sun" class="w-5 h-5"></i><span>מצב יום</span></button>
+    <button class="ibtn" id="cfgBtn" aria-label="חיבור ל-Google Maps"><i data-lucide="settings" class="w-5 h-5"></i></button>
+  </div>
+</header>
+
+<main class="grid gap-4 lg:grid-cols-[350px_minmax(0,1fr)] items-start">
+  <aside class="space-y-4 lg:sticky lg:top-4">
+    <section class="card p-4" aria-labelledby="hU">
+      <h2 id="hU" class="lbl">רמת דחיפות רפואית</h2>
+      <div class="grid grid-cols-4 gap-2" id="urgency" role="group" aria-labelledby="hU"></div>
+      <h2 class="lbl mt-4" id="hC">תלונה עיקרית</h2>
+      <div class="grid grid-cols-3 gap-2" id="complaint" role="group" aria-labelledby="hC"></div>
+    </section>
+    <section class="card p-4 space-y-3" aria-labelledby="hA">
+      <h2 id="hA" class="lbl" style="margin:0">האמבולנס</h2>
+      <div><label for="loc" class="text-sm font-semibold" style="color:var(--mut)">מיקום נוכחי</label><select id="loc" class="fld mt-1"></select></div>
+      <div class="flex gap-2" id="type" role="group" aria-label="סוג אמבולנס">
+        <button class="seg" data-v="regular" aria-pressed="true">רגיל (לבן)</button>
+        <button class="seg" data-v="icu" aria-pressed="false">נט״ן</button>
+      </div>
+    </section>
+    <details class="card p-4">
+      <summary class="font-extrabold"><i data-lucide="flame" class="w-5 h-5" style="color:var(--bad)"></i>פאנל סימולציה לשליטה בעומסים</summary>
+      <div class="space-y-2 mt-3">
+        <button class="ibtn w-full" id="crisisTop" style="min-height:52px"><i data-lucide="zap" class="w-4 h-4"></i><span>צור עומס חריג ביעד המומלץ</span></button>
+        <div class="flex gap-2"><select id="simH" class="fld" aria-label="בחירת בית חולים לסימולציה" style="min-height:48px"></select><button class="ibtn shrink-0" id="simGo" aria-label="החלף עומס חריג בבית החולים שנבחר"><i data-lucide="flame" class="w-4 h-4"></i></button></div>
+        <p class="text-sm" id="simList" style="color:var(--mut)"></p>
+        <button class="ibtn w-full" id="reset"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>אפס את כל העומסים</button>
+      </div>
+    </details>
+  </aside>
+
+  <section class="space-y-4 min-w-0">
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      <div id="hero" class="card hero p-5"></div>
+      <div class="card p-2" style="min-height:380px"><div id="map" dir="ltr"></div></div>
+    </div>
+    <div class="card p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-2 pb-2">
+        <h2 class="disp text-xl">השוואת בתי חולים קרובים</h2>
+        <div class="flex flex-wrap gap-2 text-sm" id="weights"></div>
+      </div>
+      <div id="list" class="space-y-1"></div>
+      <div class="flex flex-wrap items-center justify-between gap-2 px-2 pt-3 text-sm" style="color:var(--mut)">
+        <span class="flex flex-wrap gap-4"><span><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:var(--trv)"></i> נסיעה (דק׳)</span><span><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:var(--go)"></i><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:var(--warn)"></i><i class="inline-block w-3 h-3 rounded-sm align-middle" style="background:var(--bad)"></i> המתנה במיון לפי עומס (דק׳)</span><span>מוצגים יעדים עד 30 דק׳ נסיעה יותר מהקרוב · לחיצה על שורה בוחרת יעד אחר</span></span>
+        <button class="ibtn" id="moreBtn"></button>
+      </div>
+    </div>
+    <p class="text-xs" style="color:var(--mut)">עלות משוערת: 350 ש״ח + 15 ש״ח לק״מ, נט״ן ×2. נתוני העומס ורמות המענה מדומים. אב־טיפוס, לא לשימוש קליני.</p>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <h2 class="disp text-xl mb-2">חיבור ל-Google Maps</h2>
+  <p class="text-sm mb-3" style="color:var(--mut)">הדביקו מפתח API עם הפעלת <b>Routes API</b>. המפתח נשמר בדפדפן הזה בלבד; מומלץ להגביל אותו לפי דומיין. בלי מפתח מוצגת הערכה לפי מרחק אווירי. השאירו ריק כדי לנתק.</p>
+  <label for="key" class="text-sm font-semibold">מפתח API</label>
+  <input id="key" class="fld mt-1 mb-3" dir="ltr" placeholder="AIza…" autocomplete="off">
+  <div class="flex gap-2 justify-end"><button class="ibtn" id="keyCancel">סגור</button><button class="ibtn" id="keySave" style="background:var(--acc);color:#0c1013;border-color:var(--acc)">שמור והתחבר</button></div>
+</dialog>
+
+<script>
+const APP_NAME='נץ',TEST=new URLSearchParams(location.search).has('test');   // ?test: בלי GPS, טיימרים ו-localStorage
+if(TEST){window.__errs=[];addEventListener('error',e=>__errs.push(e.message))}
+document.getElementById('appName').textContent=APP_NAME;document.title=APP_NAME+' – ניתוב מטופלים למיון';
+const LS={get:k=>{try{return TEST?null:localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{if(!TEST)localStorage.setItem(k,v)}catch(e){}}};
+
+/* ===== ערים ===== */
+const CITY_GROUPS=[
+ ['מרכז',[['תל אביב',32.0853,34.7818],['בת ים',32.0171,34.7454],['חולון',32.0114,34.7748],['רמת גן',32.0684,34.8248],['גבעתיים',32.0722,34.8112],['בני ברק',32.0807,34.8338],['פתח תקווה',32.0840,34.8878],['ראשון לציון',31.9730,34.7925],['רחובות',31.8928,34.8113],['הרצליה',32.1624,34.8447],['כפר סבא',32.1750,34.9069],['נתניה',32.3215,34.8532],['מודיעין',31.8980,35.0104]]],
+ ['ירושלים והסביבה',[['ירושלים',31.7683,35.2137],['בית שמש',31.7470,34.9881]]],
+ ['צפון',[['חיפה',32.7940,34.9896],['חדרה',32.4340,34.9196],['עכו',32.9281,35.0820],['נהריה',33.0050,35.0940],['נצרת',32.6996,35.3035],['עפולה',32.6078,35.2897],['טבריה',32.7959,35.5310],['צפת',32.9646,35.4960],['קריית שמונה',33.2076,35.5697]]],
+ ['דרום',[['אשדוד',31.8014,34.6435],['אשקלון',31.6688,34.5743],['שדרות',31.5250,34.5964],['נתיבות',31.4231,34.5886],['באר שבע',31.2520,34.7915],['דימונה',31.0700,35.0336],['אילת',29.5577,34.9519]]]
+];
+const CITIES=CITY_GROUPS.flatMap(g=>g[1].map(c=>({n:c[0],lat:c[1],lng:c[2]})));
+
+/* ===== בתי חולים: [שם קצר, שם מלא, עיר, lat, lng, סוג, עומס בסיס מדומה] ===== */
+const TIER={T:{l:'מרכז רפואי שלישוני',s:{trauma:95,cardio:95,pain:85,kids:90,resp:90}},
+            R:{l:'בית חולים אזורי',s:{trauma:75,cardio:80,pain:80,kids:70,resp:80}},
+            C:{l:'בית חולים קהילתי',s:{trauma:40,cardio:60,pain:75,kids:50,resp:65}},
+            L:{l:'מיון מוגבל (לאמת)',s:{trauma:10,cardio:20,pain:45,kids:10,resp:25}}};
+const HOSP=[
+ ['שיבא','שיבא – תל השומר','רמת גן',32.0452,34.8443,'T',78],
+ ['איכילוב','איכילוב – המרכז הרפואי תל אביב ע״ש סוראסקי','תל אביב',32.0804,34.7898,'T',96],
+ ['וולפסון','המרכז הרפואי וולפסון','חולון',32.0386,34.7609,'R',62],
+ ['רמב״ם','המרכז הרפואי רמב״ם','חיפה',32.8333,34.9867,'T',88],
+ ['שמיר – אסף הרופא','המרכז הרפואי שמיר – אסף הרופא','באר יעקב',31.9711,34.8417,'R',84],
+ ['הגליל – נהריה','המרכז הרפואי לגליל – נהריה','נהריה',33.0129,35.1095,'R',58],
+ ['זיו – צפת','המרכז הרפואי זיו – צפת','צפת',32.9644,35.4985,'R',52],
+ ['פוריה','המרכז הרפואי פוריה – צפון','טבריה',32.7552,35.5225,'R',66],
+ ['הלל יפה','המרכז הרפואי הלל יפה','חדרה',32.4489,34.8869,'R',72],
+ ['בני ציון','המרכז הרפואי בני ציון','חיפה',32.8076,34.9877,'R',64],
+ ['ברזילי','המרכז הרפואי ברזילי','אשקלון',31.6640,34.5617,'R',80],
+ ['סורוקה','המרכז הרפואי סורוקה','באר שבע',31.2585,34.8008,'T',98],
+ ['קפלן','המרכז הרפואי קפלן','רחובות',31.8735,34.8131,'R',76],
+ ['מאיר','המרכז הרפואי מאיר','כפר סבא',32.1801,34.8947,'R',82],
+ ['העמק','המרכז הרפואי העמק','עפולה',32.6181,35.3011,'R',60],
+ ['בילינסון','המרכז הרפואי רבין – בילינסון','פתח תקווה',32.0899,34.8586,'T',86],
+ ['השרון','המרכז הרפואי רבין – השרון','פתח תקווה',32.0913,34.8780,'C',48],
+ ['אסותא אשדוד','המרכז הרפואי אסותא אשדוד','אשדוד',31.7766,34.6548,'R',74],
+ ['שערי צדק','המרכז הרפואי שערי צדק','ירושלים',31.7745,35.1857,'T',90],
+ ['הדסה עין כרם','המרכז הרפואי הדסה עין כרם','ירושלים',31.7648,35.1478,'T',84],
+ ['הדסה הר הצופים','המרכז הרפואי הדסה הר הצופים','ירושלים',31.7966,35.2440,'R',63],
+ ['מעייני הישועה','המרכז הרפואי מעייני הישועה','בני ברק',32.0789,34.8364,'R',70],
+ ['לניאדו','בית החולים לניאדו','נתניה',32.3392,34.8670,'R',68],
+ ['האנגלי','בית החולים האנגלי בנצרת','נצרת',32.7038,35.2981,'C',50],
+ ['הצרפתי','בית החולים הצרפתי בנצרת','נצרת',32.7016,35.2996,'C',46],
+ ['המשפחה הקדושה','בית החולים המשפחה הקדושה בנצרת','נצרת',32.7066,35.2967,'C',44],
+ ['האיטלקי','בית החולים האיטלקי בחיפה','חיפה',32.8151,34.9970,'C',40],
+ ['אלמקאסד','בית החולים אלמקאסד','ירושלים',31.7820,35.2470,'C',57],
+ ['אוגוסטה ויקטוריה','בית החולים אוגוסטה ויקטוריה','ירושלים',31.7867,35.2449,'L',30],
+ ['סנט ג׳וזף','בית החולים סנט ג׳וזף','ירושלים',31.7905,35.2273,'C',42],
+ ['יוספטל','בית החולים יוספטל','אילת',29.5555,34.9532,'R',55],
+ ['אסותא רמת החייל','בית החולים אסותא רמת החייל','תל אביב',32.1145,34.8395,'L',35],
+ ['אסותא ראשון לציון','בית החולים אסותא ראשון לציון','ראשון לציון',31.9845,34.7700,'L',32],
+ ['אסותא חיפה','בית החולים אסותא חיפה','חיפה',32.7896,34.9855,'L',30],
+ ['אסותא באר שבע','בית החולים אסותא באר שבע','באר שבע',31.2470,34.8000,'L',28]
+].map((a,i)=>({id:'h'+i,name:a[0],full:a[1],city:a[2],lat:a[3],lng:a[4],tier:a[5],base:a[6]}));
+
+const URG=[['low','קלה','#8fd3a8'],['mid','בינונית','#ffd166'],['high','קשה','#ff9f43'],['critical','קריטית','#ff5a4f']];
+const CMP=[['trauma','טראומה/תאונה','car-front'],['cardio','אירוע לבבי/שבץ','heart-pulse'],['pain','כאב כללי','stethoscope'],['kids','ילדים','baby'],['resp','נשימתי','wind']];
+const W={critical:{p:.80,c:.05,s:.15},high:{p:.45,c:.20,s:.35},mid:{p:.30,c:.40,s:.30},low:{p:.10,c:.75,s:.15}};
+const SPEED={critical:55,high:50,mid:38,low:38};   // קמ״ש בעיר, בהערכה מקומית
+const SIREN={critical:.7,high:.8,mid:1,low:1};     // קיצור זמן Google בנסיעה בהאצה
+const NCAND=10;                                    // בתי החולים הקרובים שנבחנים
+const HYST=3;                                      // נק׳ ציון: עדכון רקע לא מחליף המלצה בגלל פער זניח
+const RT_RADIUS=0.5;                               // ק״מ: זמני Google תקפים רק ליד נקודת המוצא שעבורה חושבו
+const TIME_CRIT={trauma:1,cardio:1};               // תלונות שבהן מרכז מתאים חשוב יותר מכמה דקות נסיעה
+const BYPASS=20;                                   // דק׳: בדחיפות קשה/קריטית עוקפים מיון עם מענה חלקי אם יש מענה טוב עד 20 דק׳ יותר
+
+const S={urgency:'critical',complaint:'cardio',loc:'gps',gps:null,gpsErr:'',type:'regular',crisis:{},jit:{},rt:null,src:'local',pick:null,showAll:false};
+let lastRec=null,lastQ=null,reqSeq=0,apiKey=LS.get('gmKey')||'',map=null,layer=null,tiles=null,lastFit='';
+const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fmt=n=>n.toLocaleString('he-IL');
+const cmpLabel=()=>CMP.find(c=>c[0]===S.complaint)[1];
+const urgLabel=()=>URG.find(u=>u[0]===S.urgency)[1];
+const icons=()=>{if(window.lucide)lucide.createIcons()};
+const hhmm=min=>new Date(Date.now()+min*6e4).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+
+function origin(){return S.loc==='gps'?S.gps:CITIES[+S.loc]}   // null = עדיין אין מיקום, לא מנחשים
+function hav(a,b){const R=6371,t=x=>x*Math.PI/180,dl=t(b.lat-a.lat),dg=t(b.lng-a.lng);
+  const h=Math.sin(dl/2)**2+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function candidates(o){return HOSP.map(h=>({h,air:hav(o,h)})).sort((a,b)=>a.air-b.air).slice(0,NCAND)}
+function routesFor(o,st=S){return st.rt&&hav(st.rt.o,o)<=RT_RADIUS?st.rt.map:{}}
+
+/* ===== Google Maps Routes API ===== */
+async function refreshRoutes(force){
+  const o=origin();if(!o)return;
+  const q=o.lat.toFixed(3)+','+o.lng.toFixed(3)+'|'+apiKey;
+  if(!force&&q===lastQ)return;lastQ=q;
+  if(!apiKey){S.rt=null;S.src='local';render(true);return}
+  const seq=++reqSeq,cand=candidates(o),ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),8000);
+  const wp=p=>({waypoint:{location:{latLng:{latitude:p.lat,longitude:p.lng}}}});
+  try{
+    const r=await fetch('https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',{method:'POST',signal:ctl.signal,
+      headers:{'Content-Type':'application/json','X-Goog-Api-Key':apiKey,'X-Goog-FieldMask':'originIndex,destinationIndex,duration,distanceMeters,condition'},
+      body:JSON.stringify({origins:[wp(o)],destinations:cand.map(c=>wp(c.h)),travelMode:'DRIVE',routingPreference:'TRAFFIC_AWARE'})});
+    if(!r.ok)throw new Error(r.status);
+    const data=await r.json(),routes={};
+    if(seq!==reqSeq)return;                         // תשובה ישנה: בינתיים יצאה בקשה למיקום חדש
+    (Array.isArray(data)?data:[]).forEach(x=>{const c=cand[x.destinationIndex||0];
+      if(c&&x.condition==='ROUTE_EXISTS'&&x.duration)routes[c.h.id]={km:(x.distanceMeters||0)/1000,min:parseInt(x.duration)/60}});
+    S.rt={o:{lat:o.lat,lng:o.lng},map:routes};S.src=Object.keys(routes).length?'google':'local';
+  }catch(e){if(seq!==reqSeq)return;S.rt=null;S.src='error';lastQ=null}
+  finally{clearTimeout(to)}
+  render(true);
+}
+
+/* ===== האלגוריתם ===== */
+function compute(o=origin(),st=S){
+  if(!o)return [];
+  const w=W[st.urgency],routes=routesFor(o,st);
+  const rows=candidates(o).map(({h,air})=>{
+    const cong=Math.round(clamp(h.base+(st.jit[h.id]||0)+(st.crisis[h.id]?65:0),10,190));
+    const rt=routes[h.id];let km,time;
+    if(rt){km=rt.km;time=rt.min*SIREN[st.urgency]}
+    else{km=air*1.3;time=km/(SPEED[st.urgency]+(km>25?30:0))*60+1}
+    km=Math.round(km*10)/10;time=Math.max(2,Math.round(time));
+    const wait=Math.round(5+cong*0.8);
+    const cost=Math.round((350+15*km)*(st.type==='icu'?2:1));
+    return {h,cong,km,time,wait,cost,sp:TIER[h.tier].s[st.complaint],src:rt?'google':'local'};
+  });
+  const tmin=Math.min(...rows.map(r=>r.time));
+  const near=rows.filter(r=>r.time<=tmin+30);       // רק יעדים בטווח של עד 30 דק׳ נסיעה יותר מהקרוב ביותר
+  const hiU=st.urgency==='critical'||st.urgency==='high';
+  const tAble=Math.min(...near.filter(r=>r.sp>=70&&r.h.tier!=='L').map(r=>r.time));
+  const bypass=hiU&&TIME_CRIT[st.complaint]&&tAble<=tmin+BYPASS;
+  near.forEach(r=>{
+    r.prox=clamp(100-(r.time-tmin)*3.5,0,100);
+    r.cs=clamp(100-Math.max(0,r.cong-20)*0.9,0,100);
+    r.score=Math.round(w.p*r.prox+w.c*r.cs+w.s*r.sp);
+    r.capped=r.h.tier==='L';                          // ללא מיון כללי מאומת: תקרת ציון
+    r.partial=bypass&&!r.capped&&r.sp<70;             // מענה חלקי כשיש מרכז מתאים בטווח סביר: עוקפים
+    if(r.capped)r.score=Math.min(r.score,hiU?25:40);
+    else if(r.partial)r.score=Math.min(r.score,30);
+    r.nearest=r.time===tmin;
+  });
+  return near.sort((a,b)=>b.score-a.score);
+}
+// מונע קפיצות של ההמלצה בעדכוני רקע: היעד הנוכחי נשאר ראשון כל עוד הפער קטן מ-HYST
+function stick(rows,id){
+  const i=rows.findIndex(r=>r.h.id===id);
+  if(i<=0||rows[0].score-rows[i].score>=HYST)return {rows,held:null};
+  const out=rows.slice(),[r]=out.splice(i,1);out.unshift(r);return {rows:out,held:rows[0]};
+}
+const congVar=c=>c>=100?'var(--bad)':c>=75?'var(--warn)':'var(--go)';
+const congLbl=c=>c>=100?'עומס חריג':c>=75?'עומס גבוה':'עומס תקין';
+
+function reasons(r){
+  const out=[];
+  out.push(r.nearest?['navigation',`הקרוב ביותר · ${r.time} דק׳`]:['navigation',`${r.time} דק׳ נסיעה`]);
+  out.push(['gauge',`${congLbl(r.cong)} · ${r.cong}%`]);
+  out.push(['badge-check',r.sp>=90?`מענה מלא ל${cmpLabel()}`:r.sp>=70?`מענה טוב ל${cmpLabel()}`:`מענה חלקי ל${cmpLabel()}`]);
+  return out;
+}
+
+function cmpText(r,rec,rows,held){
+  const manual=r!==rec,nearest=rows.reduce((a,b)=>a.time<=b.time?a:b),d=(nearest.time+nearest.wait)-(r.time+r.wait);
+  let t;
+  if(r===nearest)t=manual?'הקרוב ביותר בנסיעה, אבל לא בעל הציון הגבוה.':'גם הקרוב ביותר וגם בעל הציון הגבוה מבין הקרובים.';
+  else if(d>0)t=`חוסך כ-${d} דק׳ עד קבלה לעומת ${nearest.h.name}, הקרוב ביותר.`;
+  else{const why=r.sp>nearest.sp?`מענה טוב יותר ל${cmpLabel()}`:nearest.capped?`ב${nearest.h.name} אין מיון כללי מאומת`:r.cong<nearest.cong?'עומס נמוך יותר':'ציון כולל גבוה יותר';
+    t=d===0?`זמן קבלה זהה ל${nearest.h.name}, הקרוב ביותר`+(manual?'.':`, עם ${why}.`)
+           :`${-d} דק׳ יותר מ${nearest.h.name}, הקרוב ביותר`+(manual?'.':`, כי ${why}.`)}
+  if(held&&!manual)t+=` ההמלצה נשמרה: ${held.h.name} גבוה רק ב-${held.score-r.score} נק׳.`;
+  return t;
+}
+
+function heroHTML(r,rec,rows,held){
+  const manual=r!==rec,o=origin(),total=r.time+r.wait;
+  return `<div class="flex flex-wrap items-center justify-between gap-2">
+    ${manual?`<span class="chip" style="color:var(--acctx);border-color:var(--acc)"><i data-lucide="hand" class="w-4 h-4"></i>נבחר ידנית</span>`:`<span class="chip" style="color:var(--go);border-color:var(--go)"><span class="pulse"></span>מומלץ ביותר</span>`}
+    <span class="chip">ציון התאמה <b class="num text-base">${r.score}</b>/100</span></div>
+   <h2 class="disp mt-3" style="font-size:clamp(2rem,4.2vw,3rem);line-height:1.05">${r.h.name}</h2>
+   <p class="font-semibold" style="color:var(--mut)">${r.h.full} · ${r.h.city} · ${TIER[r.h.tier].l}</p>
+   <div class="flex items-end gap-3 mt-4"><span class="disp num bigt" style="color:${manual?'var(--acctx)':'var(--go)'}">${total}</span><span class="pb-2 font-bold text-lg">דק׳ עד קבלה<br><span class="text-sm font-semibold" style="color:var(--mut)">משוער · הגעה ב-<b class="num" id="eta">${hhmm(r.time)}</b></span></span></div>
+   <div class="tl mt-3" aria-hidden="true"><div style="width:${r.time/total*100}%;background:var(--trv)"></div><div style="width:${r.wait/total*100}%;background:${congVar(r.cong)}"></div></div>
+   <div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm font-semibold num" style="color:var(--mut)"><span>נסיעה <b style="color:var(--tx)">${r.time} דק׳</b></span><span>המתנה במיון <b style="color:var(--tx)">${r.wait} דק׳</b></span><span>מרחק <b style="color:var(--tx)">${r.km} ק״מ</b></span><span>עלות <b style="color:var(--tx)">₪${fmt(r.cost)}</b></span></div>
+   <div class="flex flex-wrap gap-2 mt-4">${reasons(r).map(([i,t])=>`<span class="chip"><i data-lucide="${i}" class="w-4 h-4"></i>${t}</span>`).join('')}</div>
+   <p class="mt-3 font-semibold" id="cmp">${cmpText(r,rec,rows,held)}${r.capped?' <span style="color:var(--bad)">אין מיון כללי מאומת, לא מומלץ בדחיפות גבוהה.</span>':r.partial?` <span style="color:var(--bad)">מענה חלקי ל${cmpLabel()}: בדחיפות זו עדיף מרכז מתאים.</span>`:''}</p>
+   <div class="flex flex-wrap gap-2 mt-4">
+     <a class="nav" id="navWaze" style="background:#33ccff;color:#06222e" href="https://waze.com/ul?ll=${r.h.lat},${r.h.lng}&navigate=yes" target="_blank" rel="noopener"><i data-lucide="navigation" class="w-5 h-5"></i>Waze</a>
+     <a class="nav" id="navG" style="background:var(--tx);color:var(--bg)" href="https://www.google.com/maps/dir/?api=1&origin=${o.lat},${o.lng}&destination=${r.h.lat},${r.h.lng}&travelmode=driving" target="_blank" rel="noopener"><i data-lucide="map-pin" class="w-5 h-5"></i>Google Maps</a>
+     ${manual?`<button class="nav ibtn" id="backRec" style="flex:0 0 auto"><i data-lucide="undo-2" class="w-5 h-5"></i>חזור להמלצה</button>`:''}</div>`;
+}
+
+function waitHTML(){
+  const err=S.gpsErr;
+  return `<span class="chip" style="color:${err?'var(--bad)':'var(--acctx)'};border-color:${err?'var(--bad)':'var(--acc)'}"><i data-lucide="${err?'map-pin-off':'locate'}" class="w-4 h-4"></i>${err||'מאתר מיקום GPS…'}</span>
+   <h2 class="disp mt-3" style="font-size:clamp(2rem,4.2vw,3rem);line-height:1.05">${err?'בחרו מיקום ידנית':'ממתין למיקום'}</h2>
+   <p class="font-semibold mt-1" style="color:var(--mut)">ההמלצה תוצג ברגע שיתקבל מיקום. כדי לא לנתב לפי מיקום שגוי, לא מוצגים יעדים עד אז.</p>
+   <div class="flex mt-4"><button class="nav ibtn" id="pickLoc" style="flex:0 0 auto"><i data-lucide="map-pin" class="w-5 h-5"></i>בחירת מיקום ידנית</button></div>`;
+}
+
+function rowHTML(r,i,rec,chosen,mx){
+  const c=congVar(r.cong);
+  return `<button class="row ${r===rec?'rec':''} ${r===chosen?'sel':''}" data-pick="${r.h.id}" aria-pressed="${r===chosen}">
+   <span class="rk num">${i+1}</span>
+   <span class="nm min-w-0"><span class="block font-extrabold text-lg truncate">${r.h.name}</span>
+     <span class="flex flex-wrap items-center gap-1 text-sm" style="color:var(--mut)">${r.h.city}
+     ${r.cong>=100?`<span class="tag" style="background:var(--bad);color:#0c1013">עומס חריג</span>`:''}
+     ${r.h.tier==='L'?`<span class="tag" style="background:var(--s2);border:1px solid var(--line)">מיון מוגבל</span>`:''}
+     ${r.partial?`<span class="tag" style="background:var(--s2);border:1px solid var(--line)">מענה חלקי</span>`:''}
+     ${S.crisis[r.h.id]?`<span class="tag" style="background:var(--acc);color:#0c1013">סימולציה</span>`:''}</span></span>
+   <span class="bars min-w-0"><span class="tl" style="height:14px"><span style="display:block;height:100%;width:${r.time/mx*100}%;background:var(--trv)"></span><span style="display:block;height:100%;width:${r.wait/mx*100}%;background:${c}"></span></span>
+     <span class="flex flex-wrap gap-x-3 text-sm mt-1 num" style="color:var(--mut)"><span>נסיעה <b style="color:var(--tx)">${r.time}</b></span><span>המתנה <b style="color:var(--tx)">${r.wait}</b></span><span>סה״כ <b style="color:var(--tx)">${r.time+r.wait} דק׳</b></span><span style="color:${c}">${r.cong}%</span></span></span>
+   <span class="kc num text-sm"><b class="block text-base">${r.km} ק״מ</b><span style="color:var(--mut)">₪${fmt(r.cost)}</span></span>
+   <span class="sc disp num text-3xl text-left" style="color:${r===rec?'var(--go)':'var(--tx)'}">${r.score}</span></button>`;
+}
+
+/* ===== מפה ===== */
+function initMap(){
+  if(typeof L==='undefined'){$('map').innerHTML='<div class="mapoff">המפה לא נטענה. בדקו חיבור לאינטרנט.</div>';return}
+  map=L.map('map',{zoomControl:true});setTiles();layer=L.layerGroup().addTo(map);
+  if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($('map'));   // הגריד משנה גודל אחרי הטעינה
+}
+// אריחי CARTO דורשים היום מפתח API. OSM עובד בלי מפתח ומציג שמות בעברית; מצב לילה = פילטר CSS
+function setTiles(){
+  if(!map||tiles)return;
+  tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+}
+function renderMap(rows,rec,chosen,o){
+  if(!map)return;layer.clearLayers();
+  if(!o){if(lastFit!=='il'){lastFit='il';map.fitBounds([[29.5,34.25],[33.3,35.9]])}return}
+  L.polyline([[o.lat,o.lng],[chosen.h.lat,chosen.h.lng]],{color:chosen===rec?'#34d399':'#ffb800',weight:4,dashArray:'8 8',opacity:.9}).addTo(layer);
+  rows.slice().reverse().forEach(r=>{
+    const top=r===chosen,sz=top?44:30;
+    const icon=L.divIcon({className:'',html:`<div class="pin ${top?'top':''}" style="--c:${congVar(r.cong)}">${r.score}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    L.marker([r.h.lat,r.h.lng],{icon,zIndexOffset:top?1000:0}).addTo(layer)
+     .bindTooltip(`${r.h.name} · ציון ${r.score} · ${r.time+r.wait} דק׳ עד קבלה`,{direction:'top',offset:[0,-sz/2]})
+     .on('click',()=>{S.pick=r===rec?null:r.h.id;render()});
+  });
+  L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:'<div class="amb"><i data-lucide="ambulance"></i></div>',iconSize:[40,40],iconAnchor:[20,20]}),zIndexOffset:2000}).addTo(layer).bindTooltip('האמבולנס',{direction:'top'});
+  const key=o.lat.toFixed(3)+o.lng.toFixed(3);
+  if(key!==lastFit){lastFit=key;map.fitBounds(L.latLngBounds([[o.lat,o.lng],...rows.slice(0,5).map(r=>[r.h.lat,r.h.lng])]).pad(.2),{maxZoom:13})}
+}
+
+/* ===== רינדור ===== */
+function chips(){
+  const o=origin(),bad=S.loc==='gps'&&S.gpsErr;
+  $('gpsTxt').textContent=S.loc!=='gps'?'מיקום ידני: '+o.n:S.gps?(S.gpsErr?'אות GPS אבד · מיקום אחרון':`GPS פעיל (±${Math.round(S.gps.acc)} מ׳)`):(S.gpsErr||'מאתר מיקום…');
+  $('gpsChip').style.color=bad?'var(--bad)':'';
+  $('srcTxt').textContent=S.src==='google'?'Google Maps · תנועה חיה':S.src==='error'?'שגיאת חיבור, הערכה מקומית':'הערכה מקומית';
+  $('srcChip').style.color=S.src==='google'?'var(--go)':S.src==='error'?'var(--bad)':'';
+}
+// bg=true: עדכון רקע (עומסים, GPS, Google) – עם יציבות המלצה. שינוי של המשתמש מחשב מחדש בלי יציבות.
+function render(bg){
+  const o=origin(),f=document.activeElement,fPick=f&&f.dataset?f.dataset.pick:null,fId=f&&f.id;
+  const w=W[S.urgency];
+  $('weights').innerHTML=`<span class="chip">דחיפות <b>${urgLabel()}</b></span>`+[['קרבה',w.p],['עומס',w.c],['התאמה',w.s]].map(([n,v])=>`<span class="chip">${n} <b class="num">${Math.round(v*100)}%</b></span>`).join('');
+  const on=HOSP.filter(h=>S.crisis[h.id]).map(h=>h.name);
+  $('simList').textContent=on.length?'עומס חריג פעיל: '+on.join(', '):'';
+  chips();
+  if(!o){
+    $('hero').innerHTML=waitHTML();$('hero').classList.add('manual');
+    $('list').innerHTML='<p class="px-2 py-6 text-center font-semibold" style="color:var(--mut)">אין עדיין מיקום, ולכן אין השוואה.</p>';
+    $('moreBtn').style.display='none';renderMap([],null,null,null);icons();lastRec=null;return;
+  }
+  let rows=compute(o),held=null;
+  if(bg&&lastRec)({rows,held}=stick(rows,lastRec));
+  const rec=rows[0];
+  if(S.pick&&!rows.find(r=>r.h.id===S.pick))S.pick=null;
+  const chosen=rows.find(r=>r.h.id===S.pick)||rec;
+  const hero=$('hero');hero.innerHTML=heroHTML(chosen,rec,rows,held);hero.classList.toggle('manual',chosen!==rec);
+  const shown=S.showAll?rows:rows.slice(0,6),mx=Math.max(...rows.map(r=>r.time+r.wait));
+  $('list').innerHTML=shown.map((r,i)=>rowHTML(r,i,rec,chosen,mx)).join('');
+  $('moreBtn').style.display=rows.length>6?'':'none';
+  $('moreBtn').innerHTML=S.showAll?'<i data-lucide="chevron-up" class="w-4 h-4"></i>הצג פחות':`<i data-lucide="chevron-down" class="w-4 h-4"></i>הצג את כל ${rows.length} הקרובים`;
+  renderMap(rows,rec,chosen,o);
+  icons();
+  // ה-HTML נבנה מחדש: מחזירים את הפוקוס של המקלדת למקום שבו היה
+  const back=fPick?$('list').querySelector(`[data-pick="${fPick}"]`):fId?$(fId):null;
+  if(back&&back!==document.activeElement)back.focus({preventScroll:true});
+  if(lastRec&&lastRec!==rec.h.id)toast(`ההמלצה עברה מ${HOSP.find(h=>h.id===lastRec).name} ל${rec.h.name}`);
+  lastRec=rec.h.id;
+}
+function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),3500)}
+
+/* ===== בניית פקדים ===== */
+function buildControls(){
+  $('urgency').innerHTML=URG.map(([v,l,c])=>`<button class="urg" style="--u:${c}" data-v="${v}" aria-pressed="${S.urgency===v}"><i></i>${l}</button>`).join('');
+  $('complaint').innerHTML=CMP.map(([v,l,ic])=>`<button class="tile" data-v="${v}" aria-pressed="${S.complaint===v}"><i data-lucide="${ic}"></i>${l}</button>`).join('');
+  $('loc').innerHTML='<option value="gps">מיקום GPS חי</option>'+CITY_GROUPS.map(([g,cs])=>`<optgroup label="${g}">`+cs.map(c=>{const i=CITIES.findIndex(x=>x.n===c[0]);return `<option value="${i}">${c[0]}</option>`}).join('')+'</optgroup>').join('');
+  $('simH').innerHTML=HOSP.slice().sort((a,b)=>a.name.localeCompare(b.name,'he')).map(h=>`<option value="${h.id}">${h.name}</option>`).join('');
+}
+function bindGroup(id,key){$(id).addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b)return;S[key]=b.dataset.v;
+  [...$(id).querySelectorAll('[data-v]')].forEach(x=>x.setAttribute('aria-pressed',x===b));render()})}
+function setTheme(t){
+  document.documentElement.dataset.theme=t;LS.set('netzTheme',t);
+  $('themeBtn').innerHTML=t==='day'?'<i data-lucide="moon" class="w-5 h-5"></i><span>מצב לילה</span>':'<i data-lucide="sun" class="w-5 h-5"></i><span>מצב יום</span>';
+  setTiles();
+}
+buildControls();bindGroup('urgency','urgency');bindGroup('complaint','complaint');bindGroup('type','type');
+$('loc').onchange=e=>{S.loc=e.target.value;S.pick=null;lastRec=null;render();refreshRoutes()};   // מיקום חדש: בלי הודעת "ההמלצה עברה"
+$('list').onclick=e=>{const b=e.target.closest('[data-pick]');if(!b)return;const id=b.dataset.pick;S.pick=(lastRec===id)?null:id;render()};
+$('hero').onclick=e=>{
+  if(e.target.closest('#backRec')){S.pick=null;render()}
+  else if(e.target.closest('#pickLoc')){const s=$('loc');s.focus();try{s.showPicker()}catch(x){}}};
+$('moreBtn').onclick=()=>{S.showAll=!S.showAll;render()};
+$('crisisTop').onclick=()=>{if(!lastRec)return toast('אין עדיין יעד מומלץ');S.crisis[lastRec]=true;S.pick=null;render()};
+$('simGo').onclick=()=>{const id=$('simH').value;S.crisis[id]=!S.crisis[id];render()};
+$('reset').onclick=()=>{S.crisis={};S.jit={};render()};
+$('themeBtn').onclick=()=>{setTheme(document.documentElement.dataset.theme==='day'?'night':'day');render()};
+$('cfgBtn').onclick=()=>{$('key').value=apiKey;$('dlg').showModal()};
+$('keyCancel').onclick=()=>$('dlg').close();
+$('keySave').onclick=()=>{apiKey=$('key').value.trim();LS.set('gmKey',apiKey);$('dlg').close();lastQ=null;refreshRoutes(true)};
+
+/* ===== GPS ===== */
+function onGps(p){
+  const n={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,n:'GPS'};
+  const moved=!S.gps||hav(S.gps,n)>0.3;S.gps=n;S.gpsErr='';
+  if(S.loc==='gps'&&moved){render(true);refreshRoutes()}else chips();
+}
+// אות שאבד לא מחזיר לתל אביב: נשארים על המיקום האחרון, או מבקשים בחירה ידנית
+function onGpsErr(e){S.gpsErr=e&&e.code===1?'אין הרשאת מיקום':'GPS לא זמין';if(S.loc==='gps')render(true);else chips()}
+
+/* ===== מסך דולק בזמן נסיעה ===== */
+let wake=null;
+async function keepAwake(){
+  if(TEST||wake||!('wakeLock' in navigator)||document.visibilityState!=='visible')return;
+  try{wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}catch(e){}
+}
+
+function jitter(){HOSP.forEach(h=>S.jit[h.id]=clamp((S.jit[h.id]||0)+Math.round((Math.random()-.5)*6),-12,12));render(true)}
+setTheme(TEST?'night':LS.get('netzTheme')||'night');
+initMap();
+try{$('favicon').href='data:image/svg+xml,'+encodeURIComponent(new XMLSerializer().serializeToString($('logo')))}catch(e){}
+if(!TEST){
+  if(navigator.geolocation)navigator.geolocation.watchPosition(onGps,onGpsErr,{enableHighAccuracy:true,maximumAge:10000,timeout:15000});
+  else S.gpsErr='GPS לא נתמך בדפדפן';
+  setInterval(jitter,9000);
+  setInterval(()=>refreshRoutes(true),90000);
+  document.addEventListener('visibilitychange',keepAwake);document.addEventListener('pointerdown',keepAwake);keepAwake();
+}
+render();refreshRoutes();
+window.NETZ={S,HOSP,CITIES,TIER,W,URG,CMP,HYST,BYPASS,compute,stick,render,refreshRoutes,origin,hav,onGps,onGpsErr,setTheme,
+  setKey:k=>{apiKey=k;lastQ=null},get lastRec(){return lastRec},get layer(){return layer}};
+</script>
+</body>
+</html>

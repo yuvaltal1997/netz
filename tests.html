@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>נץ – בדיקות</title>
+<style>
+body{font-family:'Assistant',system-ui,Arial,sans-serif;background:#0a0e17;color:#eef2f6;margin:0;padding:16px}
+h1{margin:0 0 4px}
+#sum{font-size:22px;font-weight:800;margin:8px 0 16px}
+table{border-collapse:collapse;width:100%}
+td{padding:6px 8px;border-bottom:1px solid #243149;font-size:14px;vertical-align:top}
+td:first-child{width:28px;font-weight:800}
+.ok{color:#34d399}.bad{color:#f87171}.grp td{color:#97a3b6;font-weight:800;padding-top:14px}
+iframe{position:absolute;left:-10000px;top:0;height:900px;border:0}
+</style>
+</head>
+<body>
+<h1>בדיקות נץ</h1>
+<div id="sum">רץ…</div>
+<table id="out"></table>
+<iframe id="app" title="האפליקציה הנבדקת"></iframe>
+<script>
+const T=[];let grp='';
+const group=g=>grp=g,test=(name,fn)=>T.push({g:grp,name,fn});
+const eq=(a,b,m='')=>{if(a!==b)throw new Error(`${m} ציפיתי ל-${JSON.stringify(b)}, התקבל ${JSON.stringify(a)}`)};
+const ok=(c,m='תנאי לא התקיים')=>{if(!c)throw new Error(m)};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let win,doc,N;
+
+function load(w){return new Promise(res=>{const f=document.getElementById('app');f.style.width=w+'px';
+  f.onload=async()=>{win=f.contentWindow;doc=f.contentDocument;for(let i=0;i<200&&!win.NETZ;i++)await sleep(50);N=win.NETZ;await sleep(300);res()};
+  f.src='index.html?test&t='+Date.now()})}
+const $a=id=>doc.getElementById(id);
+const cityIdx=n=>N.CITIES.findIndex(c=>c.n===n);
+const cityO=n=>N.CITIES[cityIdx(n)];
+function setLoc(v){const s=$a('loc');s.value=typeof v==='string'&&v!=='gps'?String(cityIdx(v)):v;s.dispatchEvent(new win.Event('change'))}
+function fresh(){Object.assign(N.S,{urgency:'critical',complaint:'cardio',loc:'gps',gps:null,gpsErr:'',type:'regular',crisis:{},jit:{},rt:null,src:'local',pick:null,showAll:false});
+  N.setKey('');$a('loc').value='gps';$a('toast').classList.remove('show');N.render()}
+const st=o=>Object.assign({},N.S,{crisis:{},jit:{},rt:null},o);
+const cand=o=>N.HOSP.map(h=>({h,air:N.hav(o,h)})).sort((a,b)=>a.air-b.air).slice(0,10);
+const resp=(data,status=200)=>({ok:status<300,status,json:async()=>data});
+const matrix=o=>cand(o).map((c,i)=>({originIndex:0,destinationIndex:i,duration:(10+i*3)*60+'s',distanceMeters:4000+i*2500,condition:'ROUTE_EXISTS'}));
+const finite=r=>['km','time','wait','cost','score','cong'].every(k=>Number.isFinite(r[k]));
+const IL=p=>p.lat>29.4&&p.lat<33.4&&p.lng>34.2&&p.lng<35.95;
+
+/* ---------- נתונים ---------- */
+group('נתונים');
+test('מזהים ושמות קצרים של בתי החולים ייחודיים',()=>{eq(new Set(N.HOSP.map(h=>h.id)).size,N.HOSP.length,'מזהים:');eq(new Set(N.HOSP.map(h=>h.name)).size,N.HOSP.length,'שמות:')});
+test('כל בתי החולים והערים בתוך גבולות ישראל',()=>{const bad=[...N.HOSP,...N.CITIES].filter(p=>!IL(p)).map(p=>p.name||p.n);eq(bad.length,0,'מחוץ לגבולות: '+bad.join(', '))});
+test('סוג בית חולים ועומס בסיס תקינים',()=>N.HOSP.forEach(h=>{ok(N.TIER[h.tier],h.name+': סוג לא מוכר');ok(h.base>=0&&h.base<=100,h.name+': עומס בסיס')}));
+test('משקלות כל רמת דחיפות מסתכמים ל-100%',()=>Object.entries(N.W).forEach(([k,w])=>eq(Math.round((w.p+w.c+w.s)*100),100,k)));
+
+/* ---------- אלגוריתם ---------- */
+group('אלגוריתם הניתוב');
+test('כל עיר × דחיפות × תלונה × סוג אמבולנס: תוצאה תקינה וממוינת (1,240 תרחישים)',()=>{let n=0;
+  for(const c of N.CITIES)for(const [u] of N.URG)for(const [cm] of N.CMP)for(const type of ['regular','icu']){
+    const rows=N.compute(c,st({urgency:u,complaint:cm,type}));n++;
+    ok(rows.length>=1,`${c.n}: אין יעדים`);
+    rows.forEach((r,i)=>{ok(finite(r),`${c.n}/${r.h.name}: ערך לא מספרי`);ok(r.score>=0&&r.score<=100,`${c.n}/${r.h.name}: ציון ${r.score}`);ok(r.time>=2,'זמן נסיעה < 2');
+      if(i)ok(rows[i-1].score>=r.score,`${c.n}: לא ממוין לפי ציון`)})}
+  eq(n,1240,'מספר תרחישים:')});
+test('מיון מוגבל לא מומלץ בדחיפות קשה/קריטית כשיש חלופה',()=>{
+  for(const c of N.CITIES)for(const u of ['high','critical'])for(const [cm] of N.CMP){const rows=N.compute(c,st({urgency:u,complaint:cm}));
+    if(rows.some(r=>!r.capped))ok(!rows[0].capped,`${c.n} ${u} ${cm}: הומלץ ${rows[0].h.name}`)}});
+test('אילת → יוספטל בכל תרחיש',()=>{for(const [u] of N.URG)for(const [cm] of N.CMP)eq(N.compute(cityO('אילת'),st({urgency:u,complaint:cm}))[0].h.name,'יוספטל',`${u}/${cm}:`)});
+test('טראומה/לב בדחיפות קשה-קריטית: עוקפים מיון עם מענה חלקי כשיש מרכז מתאים בטווח',()=>{let n=0;
+  for(const c of N.CITIES)for(const u of ['high','critical'])for(const cm of ['trauma','cardio']){const rows=N.compute(c,st({urgency:u,complaint:cm}));
+    const tmin=Math.min(...rows.map(r=>r.time)),able=rows.filter(r=>r.sp>=70&&r.h.tier!=='L');
+    if(able.length&&Math.min(...able.map(r=>r.time))<=tmin+N.BYPASS){n++;ok(rows[0].sp>=70,`${c.n} ${u} ${cm}: הומלץ ${rows[0].h.name} (מענה ${rows[0].sp})`)}}
+  ok(n>100,'מעט מדי תרחישים נבדקו: '+n)});
+test('נצרת, קריטי, טראומה → לא בית חולים קהילתי',()=>{const r=N.compute(cityO('נצרת'),st({urgency:'critical',complaint:'trauma'}))[0];ok(r.h.tier!=='C'&&r.h.tier!=='L',r.h.name)});
+test('נצרת, קריטי, כאב כללי → הקרוב בנצרת (אין עקיפה)',()=>{const r=N.compute(cityO('נצרת'),st({urgency:'critical',complaint:'pain'}))[0];eq(r.h.city,'נצרת',r.h.name+':')});
+test('נט״ן מכפיל את העלות',()=>{const o=cityO('נתניה'),a=N.compute(o,st({type:'regular'})),b=N.compute(o,st({type:'icu'}));
+  a.forEach(r=>{const x=b.find(y=>y.h.id===r.h.id);ok(Math.abs(x.cost-2*r.cost)<=1,r.h.name)})});
+test('עומס חריג ביעד המומלץ מעביר את ההמלצה (תל אביב, דחיפות קלה)',()=>{const o=cityO('תל אביב'),rec=N.compute(o,st({urgency:'low'}))[0];
+  ok(N.compute(o,st({urgency:'low',crisis:{[rec.h.id]:true}}))[0].h.id!==rec.h.id,'ההמלצה לא השתנתה')});
+test('יציבות המלצה: פער קטן מ-3 לא מחליף, פער גדול כן',()=>{const R=(id,s)=>({h:{id},score:s});
+  let x=N.stick([R('a',72),R('b',70),R('c',60)],'b');eq(x.rows[0].h.id,'b','פער 2:');eq(x.held.h.id,'a','held:');eq(x.rows.length,3,'אורך:');
+  x=N.stick([R('a',73),R('b',70)],'b');eq(x.rows[0].h.id,'a','פער 3:');eq(x.held,null);
+  x=N.stick([R('a',73),R('b',70)],'zz');eq(x.rows[0].h.id,'a','מזהה לא קיים:');
+  x=N.stick([R('a',73),R('b',70)],'a');eq(x.held,null,'כבר ראשון:')});
+
+/* ---------- מיקום ו-GPS ---------- */
+group('מיקום ו-GPS');
+test('בלי מיקום GPS לא מוצגים יעדים (במקום ליפול בשקט לתל אביב)',()=>{fresh();
+  ok($a('hero').textContent.includes('ממתין למיקום'),'אין מצב המתנה');eq($a('list').querySelectorAll('[data-pick]').length,0,'שורות:');
+  eq(N.lastRec,null,'המלצה:');if(N.layer)eq(N.layer.getLayers().length,0,'סמנים במפה:')});
+test('שגיאת הרשאה בלי מיקום → בקשה לבחירה ידנית',()=>{fresh();N.onGpsErr({code:1});
+  ok($a('hero').textContent.includes('בחרו מיקום ידנית'));eq($a('gpsTxt').textContent,'אין הרשאת מיקום')});
+test('כפתור "בחירת מיקום ידנית" מעביר פוקוס לבחירת העיר',()=>{fresh();N.onGpsErr({code:2});$a('pickLoc').click();eq(doc.activeElement.id,'loc')});
+test('GPS בירושלים → המלצה בירושלים',()=>{fresh();N.onGps({coords:{latitude:31.7683,longitude:35.2137,accuracy:12}});
+  eq(N.HOSP.find(h=>h.id===N.lastRec).city,'ירושלים');ok($a('gpsTxt').textContent.includes('±12'),$a('gpsTxt').textContent)});
+test('אות GPS שאבד אחרי מיקום: נשארים במיקום האחרון',()=>{fresh();N.onGps({coords:{latitude:31.7683,longitude:35.2137,accuracy:12}});const rec=N.lastRec;
+  N.onGpsErr({code:3});eq(N.lastRec,rec,'ההמלצה השתנתה:');ok($a('gpsTxt').textContent.includes('אות GPS אבד'),$a('gpsTxt').textContent);eq(N.origin().lat,31.7683)});
+test('בחירת עיר ידנית',()=>{fresh();setLoc('חיפה');eq($a('gpsTxt').textContent,'מיקום ידני: חיפה');eq(N.HOSP.find(h=>h.id===N.lastRec).city,'חיפה')});
+test('החלפת מיקום לא מקפיצה הודעת "ההמלצה עברה"',()=>{fresh();setLoc('חיפה');$a('toast').classList.remove('show');setLoc('באר שבע');ok(!$a('toast').classList.contains('show'),$a('toast').textContent)});
+
+/* ---------- ממשק ---------- */
+group('ממשק');
+test('לחיצה על שורה בוחרת ידנית, "חזור להמלצה" מחזיר',()=>{fresh();setLoc('תל אביב');const rows=$a('list').querySelectorAll('[data-pick]');rows[1].click();
+  ok($a('hero').classList.contains('manual'),'אין מצב ידני');ok($a('hero').textContent.includes('נבחר ידנית'));
+  $a('backRec').click();ok(!$a('hero').classList.contains('manual'),'לא חזר להמלצה')});
+test('בחירה ידנית של הקרוב ביותר (כשאינו המומלץ) לא טוענת שהוא "בעל הציון הגבוה"',()=>{fresh();let hit=null;
+  for(const c of N.CITIES){for(const [u] of N.URG){const rows=N.compute(c,st({urgency:u}));const near=rows.reduce((a,b)=>a.time<=b.time?a:b);if(near!==rows[0]){hit={c,u,near};break}}if(hit)break}
+  ok(hit,'לא נמצא תרחיש שבו הקרוב אינו המומלץ');
+  N.S.urgency=hit.u;setLoc(hit.c.n);$a('list').querySelector(`[data-pick="${hit.near.h.id}"]`).click();
+  const t=$a('cmp').textContent;ok(!t.includes('וגם בעל הציון הגבוה'),t);ok(t.includes('לא בעל הציון הגבוה'),t)});
+test('כפתורי דחיפות מעדכנים מצב ומשקלות',()=>{fresh();setLoc('תל אביב');const b=$a('urgency').querySelector('[data-v="low"]');b.click();
+  eq(b.getAttribute('aria-pressed'),'true');const w=$a('weights').textContent;ok(w.includes('קלה')&&w.includes('עומס 75%'),w);
+  $a('urgency').querySelector('[data-v="critical"]').click()});
+test('"הצג את כל" מופיע רק כשיש יותר מ-6 יעדים, ומרחיב את הרשימה',()=>{fresh();setLoc('תל אביב');const n=N.compute().length;ok(n>6,'בתל אביב רק '+n);
+  ok($a('moreBtn').style.display!=='none','הכפתור מוסתר');eq($a('list').children.length,6);$a('moreBtn').click();eq($a('list').children.length,n);
+  setLoc('אילת');eq($a('moreBtn').style.display,'none','באילת:')});
+test('פוקוס המקלדת נשמר כשהמסך מתעדכן ברקע',()=>{fresh();setLoc('תל אביב');const b=$a('list').querySelectorAll('[data-pick]')[2],id=b.dataset.pick;b.focus();
+  N.render(true);ok(doc.activeElement!==b,'האלמנט לא נבנה מחדש?');eq(doc.activeElement.dataset.pick,id)});
+test('קישורי Waze ו-Google Maps מצביעים ליעד הנבחר',()=>{fresh();setLoc('תל אביב');const h=N.HOSP.find(x=>x.id===N.lastRec),o=cityO('תל אביב');
+  ok($a('navWaze').href.includes(`ll=${h.lat},${h.lng}`),$a('navWaze').href);
+  ok($a('navG').href.includes(`origin=${o.lat},${o.lng}`)&&$a('navG').href.includes(`destination=${h.lat},${h.lng}`),$a('navG').href)});
+test('שעת הגעה משוערת מוצגת',()=>{fresh();setLoc('תל אביב');ok(/^\d{1,2}:\d{2}$/.test($a('eta').textContent),$a('eta').textContent)});
+test('פאנל סימולציה: עומס חריג מסומן, מודיע על שינוי ומתאפס',()=>{fresh();N.S.urgency='low';setLoc('תל אביב');const rec=N.lastRec;$a('crisisTop').click();
+  ok($a('simList').textContent.includes(N.HOSP.find(h=>h.id===rec).name),$a('simList').textContent);ok(N.lastRec!==rec,'ההמלצה לא עברה');
+  ok($a('toast').classList.contains('show')&&$a('toast').textContent.includes('ההמלצה עברה'),'אין הודעה');
+  $a('reset').click();eq($a('simList').textContent,'');eq(N.lastRec,rec,'אחרי איפוס:')});
+test('"צור עומס חריג" בלי יעד מומלץ לא קורס',()=>{fresh();$a('crisisTop').click();eq(Object.keys(N.S.crisis).length,0)});
+test('מצב יום/לילה',()=>{fresh();$a('themeBtn').click();eq(doc.documentElement.dataset.theme,'day');ok($a('themeBtn').textContent.includes('מצב לילה'));
+  $a('themeBtn').click();eq(doc.documentElement.dataset.theme,'night')});
+test('המפה: סמן לכל יעד + אמבולנס + קו מסלול',()=>{fresh();setLoc('תל אביב');ok(N.layer,'המפה לא נטענה');eq(N.layer.getLayers().length,N.compute().length+2)});
+test('אריחי המפה נטענים בלי מפתח API',async()=>{fresh();setLoc('תל אביב');let n=0;for(let i=0;i<40&&!n;i++){await sleep(150);n=doc.querySelectorAll('#map img.leaflet-tile-loaded').length}
+  ok(n>0,'אף אריח לא נטען');ok(doc.querySelector('#map img.leaflet-tile').src.includes('openstreetmap'),'ספק אריחים לא צפוי')});
+test('האפליקציה עובדת גם כשספריית האייקונים לא נטענה',()=>{fresh();setLoc('תל אביב');const l=win.lucide;win.lucide=undefined;try{N.render()}finally{win.lucide=l}});
+test('הספריות החיצוניות נטענו (Leaflet, Lucide, Tailwind)',()=>{ok(win.L,'Leaflet');ok(win.lucide,'Lucide');ok(win.tailwind,'Tailwind')});
+test('הלוגו מוצג ומשמש גם כ-favicon',()=>{const r=$a('logo').getBoundingClientRect();ok(r.width>=40,'רוחב '+r.width);ok($a('favicon').href.startsWith('data:image/svg+xml'),$a('favicon').href.slice(0,40));
+  ok(decodeURIComponent($a('favicon').href).includes('lg-tile'),'ל-favicon אין אריח רקע')});
+test('הסלוגן מהלוגו מוצג בכותרת',()=>{const t=doc.querySelector('header').textContent.replace(/\s+/g,' ');ok(t.includes('מקבלים החלטות חכמות. מצילים זמן'),t)});
+test('לוגו: בלילה בלי אריח, ביום על אריח כחול כהה',()=>{fresh();const tile=$a('logo').querySelector('.lg-tile'),disp=()=>win.getComputedStyle(tile).display;
+  eq(disp(),'none','לילה:');$a('themeBtn').click();ok(disp()!=='none','ביום האריח מוסתר');$a('themeBtn').click()});
+
+/* ---------- Google Routes ---------- */
+group('חיבור Google Routes');
+test('זמני הנסיעה מהתשובה נכנסים לחישוב',async()=>{fresh();let req;win.fetch=async(u,o)=>{req=o;return resp(matrix(cityO('תל אביב')))};
+  N.setKey('TEST-KEY');setLoc('תל אביב');await N.refreshRoutes(true);
+  eq(N.S.src,'google');ok($a('srcTxt').textContent.includes('Google'));eq(req.headers['X-Goog-Api-Key'],'TEST-KEY');eq(JSON.parse(req.body).destinations.length,10);
+  const first=cand(cityO('תל אביב'))[0].h,row=N.compute().find(r=>r.h.id===first.id);
+  ok(row,'הקרוב ביותר לא ברשימה');eq(row.src,'google');eq(row.time,Math.round(10*0.7),'זמן (10 דק׳ × 0.7 בהאצה):');eq(row.km,4)});
+test('תשובה חלקית (בלי אינדקס 0 / מרחק) לא יוצרת NaN',async()=>{fresh();const m=matrix(cityO('חיפה'));delete m[0].destinationIndex;delete m[0].distanceMeters;m[1].condition='ROUTE_NOT_FOUND';delete m[1].duration;
+  win.fetch=async()=>resp(m);N.setKey('TEST-KEY');setLoc('חיפה');await N.refreshRoutes(true);
+  eq(N.S.src,'google');N.compute().forEach(r=>ok(finite(r),r.h.name))});
+test('זמני Google של מיקום קודם לא נגררים למיקום חדש וקרוב (תל אביב → רמת גן)',async()=>{fresh();win.fetch=async()=>resp(matrix(cityO('תל אביב')));
+  N.setKey('TEST-KEY');setLoc('תל אביב');await N.refreshRoutes(true);eq(N.S.src,'google');
+  win.fetch=()=>new Promise(()=>{});setLoc('רמת גן');
+  const rows=N.compute();ok(rows.every(r=>r.src==='local'),'הוחלו זמנים של תל אביב: '+rows.filter(r=>r.src!=='local').map(r=>r.h.name).join(', '))});
+test('תשובה ישנה שמגיעה באיחור נזרקת',async()=>{fresh();const pend=[];win.fetch=()=>new Promise(r=>pend.push(r));N.setKey('TEST-KEY');
+  setLoc('תל אביב');setLoc('חיפה');eq(pend.length,2,'בקשות:');
+  pend[1](resp(matrix(cityO('חיפה'))));await sleep(30);pend[0](resp(matrix(cityO('תל אביב'))));await sleep(30);
+  ok(N.hav(N.S.rt.o,cityO('חיפה'))<0.5,'נשמרו זמנים של תל אביב');ok(N.compute().some(r=>r.src==='google'),'אין זמני Google לחיפה')});
+test('שגיאת שרת → הודעת שגיאה והערכה מקומית',async()=>{fresh();win.fetch=async()=>resp({},403);N.setKey('TEST-KEY');setLoc('נתניה');await N.refreshRoutes(true);
+  eq(N.S.src,'error');ok($a('srcTxt').textContent.includes('שגיאת חיבור'));ok(N.compute().every(r=>r.src==='local'))});
+test('ניתוק המפתח מחזיר להערכה מקומית',async()=>{fresh();N.setKey('');setLoc('נתניה');await N.refreshRoutes(true);eq(N.S.src,'local');ok($a('srcTxt').textContent.includes('הערכה מקומית'))});
+test('אין שגיאות JavaScript בדסקטופ',()=>eq(win.__errs.length,0,win.__errs.join(' | ')));
+
+/* ---------- טלפון ---------- */
+group('תצוגת טלפון (375px)');
+test('טעינה מחדש ברוחב טלפון',async()=>{await load(375);ok(N,'האפליקציה לא נטענה')});
+test('אין גלילה אופקית',()=>{fresh();setLoc('תל אביב');ok(doc.documentElement.scrollWidth<=376,'רוחב תוכן '+doc.documentElement.scrollWidth)});
+test('בשורה: הציון באותה שורה של שם בית החולים',()=>{const row=$a('list').querySelector('.row'),a=row.querySelector('.nm').getBoundingClientRect(),b=row.querySelector('.sc').getBoundingClientRect();
+  ok(Math.abs(a.top-b.top)<30,`שם ב-${Math.round(a.top)}, ציון ב-${Math.round(b.top)}`);ok(b.right<=376,'הציון חורג מהמסך')});
+test('אין שגיאות JavaScript בטלפון',()=>eq(win.__errs.length,0,win.__errs.join(' | ')));
+
+/* ---------- הרצה ---------- */
+(async()=>{
+  await load(1280);let pass=0,g='';const out=document.getElementById('out');
+  for(const t of T){
+    if(t.g!==g){g=t.g;out.insertAdjacentHTML('beforeend',`<tr class="grp"><td></td><td colspan="2">${g}</td></tr>`)}
+    let err=null;try{await t.fn()}catch(e){err=e.message||String(e)}
+    if(!err)pass++;
+    out.insertAdjacentHTML('beforeend',`<tr><td class="${err?'bad':'ok'}">${err?'✗':'✓'}</td><td>${t.name}</td><td class="bad">${err||''}</td></tr>`);
+  }
+  const all=pass===T.length;
+  document.getElementById('sum').innerHTML=`<span class="${all?'ok':'bad'}">עברו ${pass} מתוך ${T.length}</span>`;
+  document.title=(all?'PASS ':'FAIL ')+pass+'/'+T.length;
+})();
+</script>
+</body>
+</html>
